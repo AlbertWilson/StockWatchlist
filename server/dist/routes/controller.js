@@ -16,16 +16,32 @@ const express = require('express');
 const controller = express.Router();
 const Stock_1 = __importDefault(require("../model/Stock"));
 const app = express();
+var yahooFinance = require('yahoo-finance');
+function getFullStockData(stockSymbol) {
+    const stockData = yahooFinance.quote({
+        symbol: stockSymbol,
+        modules: ['price']
+    }).then((quotes) => {
+        const fullStock = {
+            symbol: stockSymbol,
+            price: quotes.price.regularMarketPrice
+        };
+        return fullStock;
+    });
+    return stockData;
+}
+exports.default = getFullStockData;
 controller.route('/stocks').get(function (req, res) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const stocks = Stock_1.default.find((err, stocks) => {
-            if (err) {
-                res.send(err);
-            }
-            else {
-                res.send(stocks);
-            }
-        });
+    const stocks = Stock_1.default.find((err, stocks) => {
+        if (err) {
+            res.send(err);
+        }
+        else {
+            const watchlist = stocks.map((stock) => __awaiter(this, void 0, void 0, function* () {
+                return yield getFullStockData(stock.symbol);
+            }));
+            Promise.all(watchlist).then((watchlist) => (res.send(watchlist)));
+        }
     });
 });
 controller.route('/addStock').post(function (req, res) {
@@ -33,12 +49,26 @@ controller.route('/addStock').post(function (req, res) {
         const stock = new Stock_1.default({
             symbol: req.body.symbol
         });
+        // maybe ensure that we don't add a stock that is already there
         stock.save((err) => {
             if (err) {
                 res.send(err);
             }
             else {
                 res.send('Successfully wrote to db');
+            }
+        });
+    });
+});
+controller.route('/deleteStock').post(function (req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // seems to be a bug if I try to delete a stock that isn't there
+        Stock_1.default.deleteMany({ symbol: req.body.symbol }, function (err) {
+            if (err) {
+                res.send(err);
+            }
+            else {
+                res.send('Successfull deletion');
             }
         });
     });
