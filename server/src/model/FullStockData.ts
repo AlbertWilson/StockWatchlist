@@ -1,7 +1,9 @@
 interface FullStockData {
+    companyName: string,
     symbol: string,
-    price?: string,
-    percentChange?: string
+    price: string,
+    priceChange: string,
+    pricePercentChange: string
 }
 
 export default FullStockData;

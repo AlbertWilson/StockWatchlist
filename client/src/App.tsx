@@ -2,6 +2,7 @@ import * as React from 'react';
 import { styled, createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import MuiDrawer from '@mui/material/Drawer';
+import List from '@mui/material/List';
 import Box from '@mui/material/Box';
 import MuiAppBar, { AppBarProps as MuiAppBarProps } from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -14,22 +15,12 @@ import Paper from '@mui/material/Paper';
 import Link from '@mui/material/Link';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import StockWatchlist from './components/stockwatchlist';
+import Options from './components/options';
 import Stock from './interfaces/Stock';
 import axios from 'axios';
-
-function Copyright(props: any) {
-  return (
-    <Typography variant="body2" color="text.secondary" align="center" {...props}>
-      {'Copyright © '}
-      <Link color="inherit" href="https://mui.com/">
-        Your Website
-      </Link>{' '}
-      {new Date().getFullYear()}
-      {'.'}
-    </Typography>
-  );
-}
 
 const drawerWidth: number = 240;
 
@@ -85,15 +76,23 @@ const mdTheme = createTheme();
 
 function App() {
   const [stocks, setStocks] = React.useState<Stock[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [open, setOpen] = React.useState(true);
   const toggleDrawer = () => {
     setOpen(!open);
   };
   const stockSymbolRef = React.createRef<HTMLInputElement>();
 
-  const addStock = async (stock:Stock) => {
-    await axios.post('http://localhost:9000/addStock', stock)
+  const addStock = (stock:Stock) => {
+    try {
+      const request = axios.post('http://localhost:9000/addStock', stock);
+      request.then((response) => {
+        setStocks((prevStocks) => [...prevStocks, response.data]);
+      }).catch((error) => {
+        console.error(error);
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const deleteStock = async (stock:Stock) => {
@@ -102,12 +101,9 @@ function App() {
   
   React.useEffect(() => {
     const fetchStocks = () => {
-      setLoading(true);
       try {
         const request = axios.get('http://localhost:9000/stocks');
-
         request.then((response) => {
-          console.log(response.data);
           setStocks(response.data);
         }).catch((error) => {
           console.error(error);
@@ -115,7 +111,6 @@ function App() {
       } catch (err) {
         console.error(err);
       }
-      setLoading(false);
     }
     fetchStocks();
   }, []);
@@ -133,8 +128,6 @@ function App() {
 
     addStock(stock); 
 
-    setStocks((prevStocks) => [...prevStocks, stock]);
-
     if (stockSymbolRef.current != null) stockSymbolRef.current.value = ''; // set textbox field to empty
 
   }
@@ -151,7 +144,23 @@ function App() {
       <Box sx={{ display: 'flex' }}>
         <CssBaseline />
         <AppBar position="absolute" open={open}>
-          <Toolbar>
+          <Toolbar
+            sx={{
+              pr: '24px', // keep right padding when drawer closed
+            }}
+          >
+            <IconButton
+              edge="start"
+              color="inherit"
+              aria-label="open drawer"
+              onClick={toggleDrawer}
+              sx={{
+                marginRight: '36px',
+                ...(open && { display: 'none' }),
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
             <Typography
               component="h1"
               variant="h6"
@@ -159,7 +168,7 @@ function App() {
               noWrap
               sx={{ flexGrow: 1 }}
             >
-              Stock Watchlist Application
+              Stock Watchlist
             </Typography>
           </Toolbar>
         </AppBar>
@@ -173,9 +182,13 @@ function App() {
             }}
           >
             <IconButton onClick={toggleDrawer}>
+              <ChevronLeftIcon />
             </IconButton>
           </Toolbar>
           <Divider />
+          <List component="nav">
+            <Options />
+          </List>
         </Drawer>
         <Box
           component="main"

@@ -22,7 +22,8 @@ export default function stockwatchlist(props: {stocks:any[], deleteStockfromWatc
             <TableCell>Company Name</TableCell>
             <TableCell>Symbol</TableCell>
             <TableCell>Price</TableCell>
-            <TableCell align="right">Percent Change</TableCell>
+            <TableCell>Price Change</TableCell>
+            <TableCell>Percent Change</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

@@ -6,19 +6,41 @@ const app = express();
 
 var yahooFinance = require('yahoo-finance');
 
-export default function getFullStockData(stockSymbol:string): Promise<FullStockData> {
+function getFullStockDataDailyChange(watchlist:FullStockData[]): Promise<FullStockData> {
+    const stockSymbols = watchlist.map((stock) => {return stock.symbol});
     const stockData:Promise<FullStockData> = yahooFinance.quote({
-        symbol: stockSymbol,
-        modules: [ 'price' ]
+        symbols: stockSymbols,
+        modules: ['price']
       }).then((quotes) => {
-        const fullStock:FullStockData = {
-          symbol: stockSymbol,
-          price: quotes.price.regularMarketPrice
-        }
-        return fullStock;
+        return Object.keys(quotes).map((symbol:any) => {
+          const fullStockInfo:FullStockData = {
+            companyName: quotes[symbol].price.longName,
+            symbol: quotes[symbol].price.symbol,
+            price: quotes[symbol].price.regularMarketPrice,
+            priceChange: quotes[symbol].price.regularMarketChange,
+            pricePercentChange: quotes[symbol].price.regularMarketChangePercent
+          }
+          return fullStockInfo;
+        })
       });
-
     return stockData;
+}
+
+function getSingleStock(symbol:string): Promise<FullStockData> {
+  const stockData:Promise<FullStockData> = yahooFinance.quote({
+      symbol: symbol,
+      modules: ['price']
+    }).then((quote) => {
+      const fullStockInfo:FullStockData = {
+        companyName: quote.price.longName,
+        symbol: quote.price.symbol,
+        price: quote.price.regularMarketPrice,
+        priceChange: quote.price.regularMarketChange,
+        pricePercentChange: quote.price.regularMarketChangePercent
+      }
+      return fullStockInfo;
+    });
+  return stockData;
 }
 
 
@@ -27,30 +49,34 @@ controller.route('/stocks').get(function (req, res){
   const stocks = Stock.find((err: any, stocks: any) => {
     if (err) {
       res.send(err);
-    } else {      
-      const watchlist:Promise<FullStockData>[] = stocks.map(async (stock) => {
-        return await getFullStockData(stock.symbol);
+    } else {
+      const watchlist = async () => await getFullStockDataDailyChange(stocks).then((watchlist) => {
+        res.send(watchlist)
       });
-
-      Promise.all(watchlist).then((watchlist) => (res.send(watchlist)));
+      watchlist();
     }
   })
 });
 
 controller.route('/addStock').post(async function (req, res) {
+    const symbol:string = req.body.symbol;
     const stock = new Stock({
-      symbol: req.body.symbol
+      symbol: symbol
     })
-
-    // maybe ensure that we don't add a stock that is already there
 
     stock.save((err:any) => {
       if (err) {
-        res.send(err);
+        console.log(err);
       } else {
-        res.send('Successfully wrote to db');
+        console.log('Successfully wrote to db');
       }
     })
+
+    const getStock = async () => await getSingleStock(symbol).then((singleStock) => {
+      res.send(singleStock)
+    });
+    
+    getStock();
 });
 
 controller.route('/deleteStock').post(async function (req, res) {

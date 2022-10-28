@@ -1,7 +1,9 @@
 interface Stock {
+    companyName?: string,
     symbol: string,
     price?: string,
-    percentChange?: string
+    priceChange?: string,
+    pricePercentChange?: string
 }
 
 export default Stock;

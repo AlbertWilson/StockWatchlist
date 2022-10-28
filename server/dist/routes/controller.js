@@ -17,47 +17,76 @@ const controller = express.Router();
 const Stock_1 = __importDefault(require("../model/Stock"));
 const app = express();
 var yahooFinance = require('yahoo-finance');
-function getFullStockData(stockSymbol) {
+function getFullStockDataDailyChange(watchlist) {
+    const stockSymbols = watchlist.map((stock) => { return stock.symbol; });
     const stockData = yahooFinance.quote({
-        symbol: stockSymbol,
+        symbols: stockSymbols,
         modules: ['price']
     }).then((quotes) => {
-        const fullStock = {
-            symbol: stockSymbol,
-            price: quotes.price.regularMarketPrice
-        };
-        return fullStock;
+        return Object.keys(quotes).map((symbol) => {
+            const fullStockInfo = {
+                companyName: quotes[symbol].price.longName,
+                symbol: quotes[symbol].price.symbol,
+                price: quotes[symbol].price.regularMarketPrice,
+                priceChange: quotes[symbol].price.regularMarketChange,
+                pricePercentChange: quotes[symbol].price.regularMarketChangePercent
+            };
+            return fullStockInfo;
+        });
     });
     return stockData;
 }
-exports.default = getFullStockData;
+function getSingleStock(symbol) {
+    const stockData = yahooFinance.quote({
+        symbol: symbol,
+        modules: ['price']
+    }).then((quote) => {
+        const fullStockInfo = {
+            companyName: quote.price.longName,
+            symbol: quote.price.symbol,
+            price: quote.price.regularMarketPrice,
+            priceChange: quote.price.regularMarketChange,
+            pricePercentChange: quote.price.regularMarketChangePercent
+        };
+        return fullStockInfo;
+    });
+    return stockData;
+}
 controller.route('/stocks').get(function (req, res) {
     const stocks = Stock_1.default.find((err, stocks) => {
         if (err) {
             res.send(err);
         }
         else {
-            const watchlist = stocks.map((stock) => __awaiter(this, void 0, void 0, function* () {
-                return yield getFullStockData(stock.symbol);
-            }));
-            Promise.all(watchlist).then((watchlist) => (res.send(watchlist)));
+            const watchlist = () => __awaiter(this, void 0, void 0, function* () {
+                return yield getFullStockDataDailyChange(stocks).then((watchlist) => {
+                    res.send(watchlist);
+                });
+            });
+            watchlist();
         }
     });
 });
 controller.route('/addStock').post(function (req, res) {
     return __awaiter(this, void 0, void 0, function* () {
+        const symbol = req.body.symbol;
         const stock = new Stock_1.default({
-            symbol: req.body.symbol
+            symbol: symbol
         });
-        // maybe ensure that we don't add a stock that is already there
         stock.save((err) => {
             if (err) {
-                res.send(err);
+                console.log(err);
             }
             else {
-                res.send('Successfully wrote to db');
+                console.log('Successfully wrote to db');
             }
         });
+        const getStock = () => __awaiter(this, void 0, void 0, function* () {
+            return yield getSingleStock(symbol).then((singleStock) => {
+                res.send(singleStock);
+            });
+        });
+        getStock();
     });
 });
 controller.route('/deleteStock').post(function (req, res) {
