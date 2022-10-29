@@ -11,6 +11,7 @@ function preventDefault(event: React.MouseEvent) {
   event.preventDefault();
 }
 
+
 export default function stockwatchlist(props: {stocks:any[], deleteStockfromWatchlist:any}) {
   return (
     <React.Fragment>

@@ -12,7 +12,6 @@ import IconButton from '@mui/material/IconButton';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
-import Link from '@mui/material/Link';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -84,18 +83,21 @@ function App() {
 
   const addStock = (stock:Stock) => {
     try {
-      const request = axios.post('http://localhost:9000/addStock', stock);
-      request.then((response) => {
+      const request = () => axios.post('http://localhost:9000/addStock', stock).then((response) => {
         setStocks((prevStocks) => [...prevStocks, response.data]);
       }).catch((error) => {
         console.error(error);
       });
+      
+      request();
+      
     } catch (err) {
       console.error(err);
     }
   };
 
   const deleteStock = async (stock:Stock) => {
+    console.log(stock);
     await axios.post('http://localhost:9000/deleteStock', stock)
   };
   
@@ -105,9 +107,40 @@ function App() {
         const request = axios.get('http://localhost:9000/stocks');
         request.then((response) => {
           setStocks(response.data);
+
+          // const getPriceFrom7DaysAgo = axios.post('http://localhost:9000/stocksFrom7DaysAgo', stocks);
+          // getPriceFrom7DaysAgo.then((response) => {
+          //   setStocks((prevStocks) => {
+          //     const newStocks:Stock[] = [...prevStocks];
+          //     return newStocks.map((stock) => {
+          //       const historicalStock = response.data[stock.symbol];
+          //       stock.price7DaysAgo = historicalStock.price7DaysAgo;
+          //       return stock;
+          //     })
+          //   })
+          // }).catch((error) => {
+          //   console.error(error);
+          // })
+
+          // const getPriceFrom30DaysAgo = axios.post('http://localhost:9000/stocksFrom30DaysAgo', stocks);
+          // getPriceFrom30DaysAgo.then((response) => {
+          //   setStocks((prevStocks) => {
+          //     const newStocks:Stock[] = [...prevStocks];
+          //     return newStocks.map((stock) => {
+          //       const historicalStock = response.data[stock.symbol];
+          //       stock.price30DaysAgo = historicalStock.price30DaysAgo;
+          //       return stock;
+          //     })
+          //   })
+          // }).catch((error) => {
+          //   console.error(error);
+          // })
+
         }).catch((error) => {
           console.error(error);
         });
+
+        
       } catch (err) {
         console.error(err);
       }
@@ -116,7 +149,7 @@ function App() {
   }, []);
 
   function addStockToWatchlist() {
-    const stockSymbol = stockSymbolRef.current != null ? stockSymbolRef.current.value : '';
+    const stockSymbol = stockSymbolRef.current != null ? stockSymbolRef.current.value.toUpperCase() : '';
 
     if (stockSymbol === ''){
       return;
@@ -126,10 +159,19 @@ function App() {
       symbol: stockSymbol
     };
 
-    addStock(stock); 
+    const checkIfStockIsAdded = new Promise(function(resolve, reject) {
+      stocks.forEach((stock) => {
+        if (stock.symbol.toUpperCase() === stockSymbol.toUpperCase()){
+          reject();
+          return;
+        }
+      })
+      resolve(stock);
+    })
+
+    checkIfStockIsAdded.then(() => addStock(stock)).catch((err) => (console.log('stock has already been added to watchlist')));
 
     if (stockSymbolRef.current != null) stockSymbolRef.current.value = ''; // set textbox field to empty
-
   }
 
   function deleteStockFromWatchlist(stockToDelete:Stock) {
@@ -168,7 +210,7 @@ function App() {
               noWrap
               sx={{ flexGrow: 1 }}
             >
-              Stock Watchlist
+              Hi, Albert
             </Typography>
           </Toolbar>
         </AppBar>
@@ -212,7 +254,7 @@ function App() {
                 </Paper>
               </Grid>
             </Grid>
-            <Grid container spacing={3}>
+            <Grid container spacing={3} justifyContent="right">
               {/* Add Stock to Watchlist */}
               <Grid item xs={3}>
                 <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
