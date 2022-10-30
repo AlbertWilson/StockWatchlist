@@ -6,13 +6,13 @@ const app = express();
 
 var yahooFinance = require('yahoo-finance');
 
-function getFullStockDataDailyChange(watchlist:FullStockData[]): Promise<any> {
+function getFullStockDataDailyChange(watchlist:FullStockData[]): Promise<FullStockData[]> {
   if (watchlist === undefined || watchlist.length == 0){
     return new Promise<any>(function(resolve, reject){resolve([]);});
   }
 
   const stockSymbols = watchlist.map((stock) => {return stock.symbol});
-  const stockData:Promise<FullStockData> = yahooFinance.quote({
+  const stockData:Promise<FullStockData[]> = yahooFinance.quote({
       symbols: stockSymbols,
       modules: ['price']
     }).then((quotes) => {
@@ -32,131 +32,102 @@ function getFullStockDataDailyChange(watchlist:FullStockData[]): Promise<any> {
   return stockData;
 }
 
-function getFullStockDataWeeklyChange(watchlist:FullStockData[]): Promise<FullStockData> {
+function getFullStockDataWeeklyChange(watchlist:FullStockData[]): Promise<FullStockData[]> {
+  if (watchlist === undefined || watchlist.length == 0){
+    return new Promise<any>(function(resolve, reject){resolve([]);});
+  }
   const stockSymbols = watchlist.map((stock) => {return stock.symbol});
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const stockData:Promise<FullStockData> = yahooFinance.historical({
+  const stockData:Promise<FullStockData[]> = yahooFinance.historical({
       symbols: stockSymbols,
       from: oneWeekAgo,
       to: oneWeekAgo,
     }).then((quotes) => {
-      const fullStockInfo = {}
-      Object.keys(quotes).forEach((symbol:any) => {
-        if (quotes[symbol][0] != undefined){
-          fullStockInfo[symbol] = {price7DaysAgo: quotes[symbol][0].close};
+      return watchlist.map((stock) => {
+        if (quotes[stock.symbol][0] != undefined){
+          stock.price7DaysAgo = quotes[stock.symbol][0].close;
+
         } else {
-          fullStockInfo[symbol] = {price7DaysAgo: 'unavailable'}
+          stock.price7DaysAgo = 'unavailable';
         }
+        return stock;
       })
-      return fullStockInfo;
     });
   return stockData;
 }
 
-function getFullStockDataMonthlyChange(watchlist:FullStockData[]): Promise<FullStockData> {
+function getFullStockDataMonthlyChange(watchlist:FullStockData[]): Promise<FullStockData[]> {
+  if (watchlist === undefined || watchlist.length == 0){
+    return new Promise<any>(function(resolve, reject){resolve([]);});
+  }
   const stockSymbols = watchlist.map((stock) => {return stock.symbol});
   const oneMonthAgo = new Date();
   oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-  const stockData:Promise<FullStockData> = yahooFinance.historical({
+  const stockData:Promise<FullStockData[]> = yahooFinance.historical({
     symbols: stockSymbols,
     from: oneMonthAgo,
     to: oneMonthAgo,
   }).then((quotes) => {
-    const fullStockInfo = {}
-    Object.keys(quotes).forEach((symbol:any) => {
-      if (quotes[symbol][0] != undefined) {
-        fullStockInfo[symbol] = {price30DaysAgo: quotes[symbol][0].close};
+    return watchlist.map((stock) => {
+      if (quotes[stock.symbol][0] != undefined){
+        stock.price30DaysAgo = quotes[stock.symbol][0].close;
       } else {
-        fullStockInfo[symbol] = {price30DaysAgo: 'unavailable'}
+        stock.price30DaysAgo = 'unavailable';
       }
+      return stock;
     })
-    return fullStockInfo;
   });
 return stockData;
 }
 
-function getSingleStock(symbol:string): Promise<FullStockData> {
-  const stockData:Promise<FullStockData> = yahooFinance.quote({
-      symbol: symbol,
-      modules: ['price']
-    }).then((quote) => {
-      const fullStockInfo:FullStockData = {
-        companyName: quote.price.longName,
-        symbol: quote.price.symbol,
-        todayPrice: quote.price.regularMarketPrice,
-        todayPriceChange: quote.price.regularMarketChange,
-        todayPricePercentChange: quote.price.regularMarketChangePercent
-      }
-      return fullStockInfo;
-    });
-  return stockData;
-}
-
-controller.route('/stocks').get(function (req, res){
+controller.route('/stocks').get(async function (req, res){
 
   const stocks = Stock.find((err: any, stocks: any) => {
     if (err) {
       res.send(err);
     } else {
+      getFullStockDataDailyChange(stocks).then((watchlist) => {
 
-      const watchlist = async () => await getFullStockDataDailyChange(stocks).then((watchlist) => {
-        res.send(watchlist)
+        getFullStockDataWeeklyChange(watchlist).then((stocklist) => {
+
+          getFullStockDataMonthlyChange(stocklist).then((list) => {
+
+            res.send(list)
+          })
+        })
       });
-
-      watchlist();
-    }
-  })
-});
-
-controller.route('/stocksFrom7DaysAgo').post(function (req, res){
-
-  const stocks = Stock.find((err: any, stocks: any) => {
-    if (err) {
-      res.send(err);
-    } else {
-      const watchlist = async () => await getFullStockDataWeeklyChange(stocks).then((watchlist) => {
-        res.send(watchlist)
-      })
-      watchlist();
-    }
-  })
-});
-
-controller.route('/stocksFrom30DaysAgo').post(function (req, res){
-
-  const stocks = Stock.find((err: any, stocks: any) => {
-    if (err) {
-      res.send(err);
-    } else {
-      const watchlist = async () => await getFullStockDataMonthlyChange(stocks).then((watchlist) => {
-        res.send(watchlist)
-      });
-      watchlist();
     }
   })
 });
 
 controller.route('/addStock').post(async function (req, res) {
-    const symbol:string = req.body.symbol;
     const stock = new Stock({
-      symbol: symbol
+      symbol: req.body.symbol
     })
 
-    const getStock = async () => await getSingleStock(symbol);
+    const singleStockList = [stock];
     
     try{
-      const singleStock:FullStockData = await getStock();
 
-      stock.save((err:any) => {
-        if (err) {
-          console.log(err);
-        } else {
-          console.log('Successfully wrote to db');
-        }
-      })
+      getFullStockDataDailyChange(singleStockList).then((newStock) => {
 
-      res.send(singleStock);
+        getFullStockDataWeeklyChange(newStock).then((newStock) => {
+
+          getFullStockDataMonthlyChange(newStock).then((newStock) => {
+
+            stock.save((err:any) => {
+              if (err) {
+                console.log(err);
+              } else {
+                console.log('Successfully wrote to db');
+              }
+            })
+
+            res.send(newStock)
+          })
+        })
+      });
 
     } catch (err) {
       console.error(err);
@@ -165,7 +136,10 @@ controller.route('/addStock').post(async function (req, res) {
 });
 
 controller.route('/deleteStock').post(async function (req, res) {
-  Stock.deleteMany({symbol: req.body.symbol}, function (err) {
+  const stocksToDelete:String[] = req.body.symbols;
+  console.log(stocksToDelete);
+
+  Stock.deleteMany({symbol: stocksToDelete}, function (err) {
     if (err) {
       res.send(err);
     } else {

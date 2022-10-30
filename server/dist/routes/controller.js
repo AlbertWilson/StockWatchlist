@@ -42,6 +42,9 @@ function getFullStockDataDailyChange(watchlist) {
     return stockData;
 }
 function getFullStockDataWeeklyChange(watchlist) {
+    if (watchlist === undefined || watchlist.length == 0) {
+        return new Promise(function (resolve, reject) { resolve([]); });
+    }
     const stockSymbols = watchlist.map((stock) => { return stock.symbol; });
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -50,20 +53,22 @@ function getFullStockDataWeeklyChange(watchlist) {
         from: oneWeekAgo,
         to: oneWeekAgo,
     }).then((quotes) => {
-        const fullStockInfo = {};
-        Object.keys(quotes).forEach((symbol) => {
-            if (quotes[symbol][0] != undefined) {
-                fullStockInfo[symbol] = { price7DaysAgo: quotes[symbol][0].close };
+        return watchlist.map((stock) => {
+            if (quotes[stock.symbol][0] != undefined) {
+                stock.price7DaysAgo = quotes[stock.symbol][0].close;
             }
             else {
-                fullStockInfo[symbol] = { price7DaysAgo: 'unavailable' };
+                stock.price7DaysAgo = 'unavailable';
             }
+            return stock;
         });
-        return fullStockInfo;
     });
     return stockData;
 }
 function getFullStockDataMonthlyChange(watchlist) {
+    if (watchlist === undefined || watchlist.length == 0) {
+        return new Promise(function (resolve, reject) { resolve([]); });
+    }
     const stockSymbols = watchlist.map((stock) => { return stock.symbol; });
     const oneMonthAgo = new Date();
     oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
@@ -72,98 +77,58 @@ function getFullStockDataMonthlyChange(watchlist) {
         from: oneMonthAgo,
         to: oneMonthAgo,
     }).then((quotes) => {
-        const fullStockInfo = {};
-        Object.keys(quotes).forEach((symbol) => {
-            if (quotes[symbol][0] != undefined) {
-                fullStockInfo[symbol] = { price30DaysAgo: quotes[symbol][0].close };
+        return watchlist.map((stock) => {
+            if (quotes[stock.symbol][0] != undefined) {
+                stock.price30DaysAgo = quotes[stock.symbol][0].close;
             }
             else {
-                fullStockInfo[symbol] = { price30DaysAgo: 'unavailable' };
+                stock.price30DaysAgo = 'unavailable';
             }
+            return stock;
         });
-        return fullStockInfo;
-    });
-    return stockData;
-}
-function getSingleStock(symbol) {
-    const stockData = yahooFinance.quote({
-        symbol: symbol,
-        modules: ['price']
-    }).then((quote) => {
-        const fullStockInfo = {
-            companyName: quote.price.longName,
-            symbol: quote.price.symbol,
-            todayPrice: quote.price.regularMarketPrice,
-            todayPriceChange: quote.price.regularMarketChange,
-            todayPricePercentChange: quote.price.regularMarketChangePercent
-        };
-        return fullStockInfo;
     });
     return stockData;
 }
 controller.route('/stocks').get(function (req, res) {
-    const stocks = Stock_1.default.find((err, stocks) => {
-        if (err) {
-            res.send(err);
-        }
-        else {
-            const watchlist = () => __awaiter(this, void 0, void 0, function* () {
-                return yield getFullStockDataDailyChange(stocks).then((watchlist) => {
-                    res.send(watchlist);
+    return __awaiter(this, void 0, void 0, function* () {
+        const stocks = Stock_1.default.find((err, stocks) => {
+            if (err) {
+                res.send(err);
+            }
+            else {
+                getFullStockDataDailyChange(stocks).then((watchlist) => {
+                    getFullStockDataWeeklyChange(watchlist).then((stocklist) => {
+                        getFullStockDataMonthlyChange(stocklist).then((list) => {
+                            res.send(list);
+                        });
+                    });
                 });
-            });
-            watchlist();
-        }
-    });
-});
-controller.route('/stocksFrom7DaysAgo').post(function (req, res) {
-    const stocks = Stock_1.default.find((err, stocks) => {
-        if (err) {
-            res.send(err);
-        }
-        else {
-            const watchlist = () => __awaiter(this, void 0, void 0, function* () {
-                return yield getFullStockDataWeeklyChange(stocks).then((watchlist) => {
-                    res.send(watchlist);
-                });
-            });
-            watchlist();
-        }
-    });
-});
-controller.route('/stocksFrom30DaysAgo').post(function (req, res) {
-    const stocks = Stock_1.default.find((err, stocks) => {
-        if (err) {
-            res.send(err);
-        }
-        else {
-            const watchlist = () => __awaiter(this, void 0, void 0, function* () {
-                return yield getFullStockDataMonthlyChange(stocks).then((watchlist) => {
-                    res.send(watchlist);
-                });
-            });
-            watchlist();
-        }
+            }
+        });
     });
 });
 controller.route('/addStock').post(function (req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        const symbol = req.body.symbol;
         const stock = new Stock_1.default({
-            symbol: symbol
+            symbol: req.body.symbol
         });
-        const getStock = () => __awaiter(this, void 0, void 0, function* () { return yield getSingleStock(symbol); });
+        const singleStockList = [stock];
         try {
-            const singleStock = yield getStock();
-            stock.save((err) => {
-                if (err) {
-                    console.log(err);
-                }
-                else {
-                    console.log('Successfully wrote to db');
-                }
+            getFullStockDataDailyChange(singleStockList).then((newStock) => {
+                getFullStockDataWeeklyChange(newStock).then((newStock) => {
+                    getFullStockDataMonthlyChange(newStock).then((newStock) => {
+                        stock.save((err) => {
+                            if (err) {
+                                console.log(err);
+                            }
+                            else {
+                                console.log('Successfully wrote to db');
+                            }
+                        });
+                        res.send(newStock);
+                    });
+                });
             });
-            res.send(singleStock);
         }
         catch (err) {
             console.error(err);
@@ -173,7 +138,9 @@ controller.route('/addStock').post(function (req, res) {
 });
 controller.route('/deleteStock').post(function (req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        Stock_1.default.deleteMany({ symbol: req.body.symbol }, function (err) {
+        const stocksToDelete = req.body;
+        console.log(stocksToDelete);
+        Stock_1.default.deleteMany({ symbol: stocksToDelete }, function (err) {
             if (err) {
                 res.send(err);
             }
