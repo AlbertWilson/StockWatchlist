@@ -11,7 +11,7 @@ userauthcontroller.route('/register').post(async (req, res) => {
         const takenEmail:string = await User.findOne({email: user.email}); //check to make sure that the email is not taken
 
         if (takenEmail){
-            res.send("email has already been taken")
+            res.status(400).send("email has already been taken")
         } else {
             user.password = await bcrypt.hash(req.body.password, 10);
 
@@ -26,7 +26,7 @@ userauthcontroller.route('/register').post(async (req, res) => {
             res.send("User has been added to database!");
         }
     } catch (err) {
-        res.send("And error occured: " + err);
+        res.status(500).send("And error occured: " + err);
     }
 })
 
@@ -35,7 +35,7 @@ userauthcontroller.route('/login').post((req, res) => {
 
     User.findOne({email: userLoggingIn.email}).then(dbUser => {
         if (!dbUser) {
-            return res.send("Invalid email or password");
+            return res.status(404).send("Invalid email or password");
         }
         bcrypt.compare(userLoggingIn.password, dbUser.password)
         .then(isCorrect => {
@@ -58,14 +58,15 @@ userauthcontroller.route('/login').post((req, res) => {
                     }
                 )
             } else {
-                return res.send({ message: "Invalid email or password"});
+                return res.status(404).send({ message: "Invalid email or password"});
             }
         })
     })
 })
 
 userauthcontroller.route("/isUserAuth").post(verifyJWT, (req, res) => {
-    return res.send({isLoggedIn:true, firstname: req.user.email});
+    return res.send({isLoggedIn:true, firstname: req.user.firstname});
 })
 
 module.exports = userauthcontroller;
+export default userauthcontroller;

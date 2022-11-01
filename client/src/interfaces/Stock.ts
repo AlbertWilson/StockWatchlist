@@ -1,7 +1,7 @@
 interface Stock {
     companyName?: string,
     symbol: string,
-    todayPrice?: string,
+    todayPrice?: number,
     todayPriceChange?: number,
     todayPricePercentChange?: number,
     price7DaysAgo?: number,

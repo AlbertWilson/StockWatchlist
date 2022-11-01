@@ -12,21 +12,16 @@ import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useHistory } from 'react-router-dom';
 import axios from 'axios';
+import UserInputValidationSchema from '../util/DataInputValidator';
 
 const theme = createTheme();
 
 export default function SignUp() {
   const history = useHistory();
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    console.log({
-      firstname: data.get('firstname'),
-      lastname: data.get('lastname'),
-      email: data.get('email'),
-      password: data.get('password'),
-    });
 
     const user = {
       firstname: data.get('firstname'),
@@ -35,9 +30,13 @@ export default function SignUp() {
       password: data.get('password'),
     }
 
-    axios.post("/register", user).then((resp:any) => {
+    try {
+      const validInput = await UserInputValidationSchema.validateAsync(user);
+      await axios.post("/register", validInput)
       history.push('/');
-    })
+    } catch (err){
+      alert(err);
+    }
   };
 
   return (

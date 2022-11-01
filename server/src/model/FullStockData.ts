@@ -1,13 +1,13 @@
 interface FullStockData {
     companyName?: string,
     symbol: string,
-    todayPrice?: string,
+    todayPrice?: number,
     todayPriceChange?: number,
-    todayPricePercentChange?: string,
-    price7DaysAgo?: string,
-    percentageChange7DaysAgo?: string,
-    price30DaysAgo?: string,
-    percentageChange30DaysAgo?: string
+    todayPricePercentChange?: number,
+    price7DaysAgo?: number,
+    percentageChange7DaysAgo?: number,
+    price30DaysAgo?: number,
+    percentageChange30DaysAgo?: number
 }
 
 export default FullStockData;

@@ -13,7 +13,10 @@ import Button from '@mui/material/Button';
 import StockWatchlist from './stockwatchlist';
 import Stock from '../interfaces/Stock';
 import axios from 'axios';
+import StockSymbolValidationSchema from '../util/StockSymbolValidator';
 import { GridRowId } from '@mui/x-data-grid';
+
+axios.defaults.baseURL="http://localhost:8080";
 
 interface AppBarProps extends MuiAppBarProps {
   open?: boolean;
@@ -21,7 +24,7 @@ interface AppBarProps extends MuiAppBarProps {
 
 const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== 'open',
-})<AppBarProps>(({ theme, open }) => ({
+})<AppBarProps>(({ theme }) => ({
   zIndex: theme.zIndex.drawer + 1,
   transition: theme.transitions.create(['width', 'margin'], {
     easing: theme.transitions.easing.sharp,
@@ -31,35 +34,39 @@ const AppBar = styled(MuiAppBar, {
 
 const mdTheme = createTheme();
 
-export default function StockWatchlistPage(props: {logOut:any}) {
+export default function StockWatchlistPage(props: {logOut:any, firstName:string}) {
   const [stocks, setStocks] = React.useState<Stock[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [selectedRows, setSelectedRows] = React.useState<GridRowId[]>([]);
   const stockSymbolRef = React.createRef<HTMLInputElement>();
 
-  const addStock = (stock:Stock) => {
+  const addStock = async (stock:Stock) => {
+
     try {
-      const request = () => axios.post('http://localhost:8080/addStock', stock, 
+      await StockSymbolValidationSchema.validateAsync(stock)
+    } catch (err) {
+      alert(err);
+      return;
+    }
+
+    axios.post('/addStock', stock, 
       {
         headers: {
           "x-access-token": localStorage.getItem("token")
         }
       }).then(async (response) => {
-        setStocks((prevStocks) => {
-        return [...prevStocks, response.data[0]]; // response.data[0] because the response comes back as a single value array
+         setStocks((prevStocks) => {
+          return [...prevStocks, response.data[0]]; // response.data[0] because the response comes back as a single value array
         });
       }).catch((error) => {
         console.error(error);
+        alert(error);
       });
-      request();
-    } catch (err) {
-      console.error(err);
-    }
   };
 
   const deleteStocksFromDB = async (stocks:String[]) => {
     const stocksToDelete = {'symbols': stocks}
-    await axios.post('http://localhost:8080/deleteStock', stocksToDelete, {
+    await axios.post('/deleteStock', stocksToDelete, {
       headers: {
         "x-access-token": localStorage.getItem("token")
       }
@@ -70,7 +77,7 @@ export default function StockWatchlistPage(props: {logOut:any}) {
     const fetchStocks = async () => {
     setLoading(true);
       try {
-        const {data: response} = await axios.get('http://localhost:8080/stocks',
+        const {data: response} = await axios.get('/stocks',
         {
           headers: {
             "x-access-token": localStorage.getItem("token")
@@ -85,7 +92,7 @@ export default function StockWatchlistPage(props: {logOut:any}) {
     fetchStocks();
   }, []);
 
-  function addStockToWatchlist() {
+  async function addStockToWatchlist() {
     const stockSymbol = stockSymbolRef.current != null ? stockSymbolRef.current.value.toUpperCase() : '';
 
     if (stockSymbol === ''){
@@ -96,17 +103,20 @@ export default function StockWatchlistPage(props: {logOut:any}) {
       symbol: stockSymbol
     };
 
-    const checkIfStockIsAdded = new Promise(function(resolve, reject) {
-      stocks.forEach((stock) => {
+    const checkIfStockIsAdded = async (stocks:any) => {
+      stocks.forEach((stock:any) => {
         if (stock.symbol.toUpperCase() === stockSymbol.toUpperCase()){
-          reject();
-          return;
+          throw new Error("stock has already been added");
         }
       })
-      resolve(stock);
-    })
+    }
 
-    checkIfStockIsAdded.then(() => addStock(stock)).catch((err) => (console.log('stock has already been added to watchlist')));
+    try{
+      await checkIfStockIsAdded(stocks);
+      addStock(stock);
+    } catch (err) {
+      alert(err);
+    }
 
     if (stockSymbolRef.current != null) stockSymbolRef.current.value = ''; // set textbox field to empty
   }
@@ -141,14 +151,13 @@ export default function StockWatchlistPage(props: {logOut:any}) {
               noWrap
               sx={{ flexGrow: 1 }}
             >
-              Hi, Albert
+              Hi, {props.firstName}
             </Typography>
-            <Button onClick={props.logOut} style={{
-                    borderRadius: 35,
-                    backgroundColor: "#FFFFFF",
-                    fontSize: "16px"
-                }}>
-            Log Out</Button>
+            <Grid>
+              <Paper sx={{ p: 1, display: 'flex', flexDirection: 'column' }}>
+                <Button onClick={props.logOut}>Log Out</Button>
+              </Paper>
+            </Grid>
           </Toolbar>
         </AppBar>
         <Box

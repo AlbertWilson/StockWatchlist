@@ -11,28 +11,34 @@ import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import axios from 'axios';
+import UserInputValidationSchema from '../util/DataInputValidator';
 
 const theme = createTheme();
 axios.defaults.baseURL="http://localhost:8080";
 
 export default function SignIn(props:{logIn:any}) {
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    console.log({
-      email: data.get('email'),
-      password: data.get('password'),
-    });
 
     const user = {
       email: data.get('email'),
       password: data.get('password'),
     }
 
+    try {
+      const validInput = await UserInputValidationSchema.validateAsync(user);
+    } catch (err) {
+      alert(err);
+      return;
+    }
+
     axios.post("/login", user).then((resp:any) => {
       localStorage.setItem("token", resp.data.token);
       props.logIn();
+    }).catch((err) => {
+      alert(err);
     })
   };
 

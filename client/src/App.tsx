@@ -6,26 +6,29 @@ import SignUp from './components/signup';
 import WatchlistPage from './components/stockwatchlistpage';
 import { useHistory } from 'react-router-dom';
 
+axios.defaults.baseURL="http://localhost:8080";
+
 function App() {
 
   const history = useHistory();
+  const [firstName, setFirstName] = React.useState("");
 
   React.useEffect(() => {
-    console.log("The token is: " + localStorage.getItem("token"));
-    axios.post("http://localhost:8080/isUserAuth", {},
+    axios.post("/isUserAuth", {},
     {
       headers: {
         "x-access-token": localStorage.getItem("token")
       }
     })
-    .then((resp:any) => {
-      console.log("The token was valid");
-      console.log("Is this true "+ resp.data.isLoggedIn);
+    .then(async (resp:any) => {
+      console.log(resp);
+      
       return resp.data.isLoggedIn ? history.push("/watchlist"): null;
     });
   }, []);
 
   async function logOut(){
+    localStorage.removeItem("firstname");
     localStorage.removeItem("token");
     await history.push("/");
   }
@@ -45,7 +48,7 @@ function App() {
             <SignUp />
           </Route>
           <Route exact path="/watchlist">
-            <WatchlistPage logOut={logOut}/>
+            <WatchlistPage logOut={logOut} firstName={firstName}/>
           </Route>
         </Switch>
       </div>
