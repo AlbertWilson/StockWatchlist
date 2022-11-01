@@ -10,20 +10,34 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { useHistory } from 'react-router-dom'; 
+import { useHistory } from 'react-router-dom';
+import axios from 'axios';
 
 const theme = createTheme();
 
 export default function SignUp() {
   const history = useHistory();
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     console.log({
+      firstname: data.get('firstname'),
+      lastname: data.get('lastname'),
       email: data.get('email'),
       password: data.get('password'),
     });
-    history.push("/");
+
+    const user = {
+      firstname: data.get('firstname'),
+      lastname: data.get('lastname'),
+      email: data.get('email'),
+      password: data.get('password'),
+    }
+
+    axios.post("/register", user).then((resp:any) => {
+      history.push('/');
+    })
   };
 
   return (
@@ -49,10 +63,10 @@ export default function SignUp() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   autoComplete="given-name"
-                  name="firstName"
+                  name="firstname"
                   required
                   fullWidth
-                  id="firstName"
+                  id="firstname"
                   label="First Name"
                   autoFocus
                 />
@@ -61,9 +75,9 @@ export default function SignUp() {
                 <TextField
                   required
                   fullWidth
-                  id="lastName"
+                  id="lastname"
                   label="Last Name"
-                  name="lastName"
+                  name="lastname"
                   autoComplete="family-name"
                 />
               </Grid>

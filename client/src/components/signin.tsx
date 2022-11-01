@@ -10,12 +10,12 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { useHistory } from 'react-router-dom'; 
+import axios from 'axios';
 
 const theme = createTheme();
+axios.defaults.baseURL="http://localhost:8080";
 
-export default function SignIn() {
-  const history = useHistory();
+export default function SignIn(props:{logIn:any}) {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -24,7 +24,16 @@ export default function SignIn() {
       email: data.get('email'),
       password: data.get('password'),
     });
-    history.push('/watchlist');
+
+    const user = {
+      email: data.get('email'),
+      password: data.get('password'),
+    }
+
+    axios.post("/login", user).then((resp:any) => {
+      localStorage.setItem("token", resp.data.token);
+      props.logIn();
+    })
   };
 
   return (
