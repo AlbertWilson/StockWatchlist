@@ -1,65 +1,57 @@
-import React from 'react';
-import Watchlist from './components/watchlist';
-import { useState, useEffect } from 'react'
 import axios from 'axios';
-import Stock from './interfaces/Stock';
+import * as React from 'react';
+import { Switch, Route } from 'react-router-dom';
+import SignIn from './components/signin';
+import SignUp from './components/signup';
+import WatchlistPage from './components/stockwatchlistpage';
+import { useHistory } from 'react-router-dom';
 
+axios.defaults.baseURL="http://localhost:8080";
 
 function App() {
-  const [stocks, setStocks] = useState<Stock[]>([]);
-  const [loading, setLoading] = useState(true);
-  const stockSymbolRef = React.createRef<HTMLInputElement>();
 
-  const addStock = async (stock:Stock) => {
-    await axios.post('http://localhost:9000/addStock', stock)
-  };
-  
-  useEffect(() => {
-    const fetchStocks = async () => {
-      setLoading(true);
-      try {
-        const {data: response} = await axios.get('http://localhost:9000/stocks');
+  const history = useHistory();
+  const [firstName, setFirstName] = React.useState("");
 
-        setStocks(response);
-        
-      } catch (err) {
-        console.error(err);
+  React.useEffect(() => {
+    axios.post("/isUserAuth", {},
+    {
+      headers: {
+        "x-access-token": localStorage.getItem("token")
       }
-      setLoading(false);
-    }
-    fetchStocks();
+    })
+    .then(async (resp:any) => {
+      console.log(resp);
+      
+      return resp.data.isLoggedIn ? history.push("/watchlist"): null;
+    });
   }, []);
 
-  function addStockToWatchlist() {
-    const stockSymbol = stockSymbolRef.current != null ? stockSymbolRef.current.value : '';
-    if (stockSymbol === ''){
-      return;
-    }
+  async function logOut(){
+    localStorage.removeItem("firstname");
+    localStorage.removeItem("token");
+    await history.push("/");
+  }
 
-    // make alphavantage api call to retrieve full stock data
-
-    const stock:Stock = {
-      symbol: stockSymbol
-    };
-
-    // add stock to database
-    addStock(stock);
-
-    setStocks((prevStocks) => [...prevStocks, stock]);
-
-    // set textbox field to empty
-    if (stockSymbolRef.current != null) stockSymbolRef.current.value = '';
+  async function logIn(){
+    await history.push("/watchlist");
   }
 
   return (
-      <div>
-        {loading && <div>Loading</div>}
-        {!loading && (<div className="App">
-        <Watchlist stocks={stocks} />
-        <input ref={stockSymbolRef} type="text"></input>
-        <button onClick={addStockToWatchlist}>Add Stock to Watchlist</button>
-        </div>)}
-    </div>
+      <div className="App">
+        {/* Can add a navbar here if I want */}
+        <Switch>
+          <Route exact path="/">
+            <SignIn logIn={logIn}/>
+          </Route>
+          <Route exact path="/signup">
+            <SignUp />
+          </Route>
+          <Route exact path="/watchlist">
+            <WatchlistPage logOut={logOut} firstName={firstName}/>
+          </Route>
+        </Switch>
+      </div>
   );
 }
 
